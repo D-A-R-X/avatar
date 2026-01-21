@@ -1,0 +1,52 @@
+# System Permissions Configuration
+# This file defines what commands and operations are permitted
+
+permissions:
+  commands:
+    read:
+      - "file_read"
+      - "file_list"
+      - "system_info"
+    write:
+      - "file_write"
+      - "file_create"
+    execute:
+      - "app_launch"
+      - "process_start"
+    admin:
+      - "system_shutdown"
+      - "system_restart"
+  
+  files:
+    read_paths:
+      - "/workspaces/avatar/**"
+      - "/tmp/**"
+    write_paths:
+      - "/workspaces/avatar/**"
+      - "/tmp/**"
+    restricted_paths:
+      - "/etc/**"
+      - "/sys/**"
+      - "/proc/**"
+  
+  network:
+    enabled: true
+    allowed_domains: []
+    blocked_domains: []
+
+roles:
+  admin:
+    permissions:
+      - "all"
+  
+  user:
+    permissions:
+      - "commands.read"
+      - "commands.write"
+      - "files.read_paths"
+      - "files.write_paths"
+  
+  guest:
+    permissions:
+      - "commands.read"
+      - "files.read_paths"
