@@ -1,3 +1,4 @@
+# Project stable – phase 1–4 complete
 import sys
 from PySide6.QtWidgets import QApplication
 from avatar.avatar_window import AvatarWindow
