@@ -8,6 +8,7 @@ from enum import Enum
 AVATAR_CLICK = "AVATAR_CLICK"
 USER_TEXT_INPUT = "USER_TEXT_INPUT"
 AI_RESPONSE = "AI_RESPONSE"
+AI_STATE_UPDATE = "AI_STATE_UPDATE"
 
 
 class EventType(str, Enum):
