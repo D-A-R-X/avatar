@@ -3,6 +3,11 @@ Event types enumeration for standardized event naming.
 """
 
 from enum import Enum
+# events/event_types.py
+
+AVATAR_CLICK = "AVATAR_CLICK"
+USER_TEXT_INPUT = "USER_TEXT_INPUT"
+AI_RESPONSE = "AI_RESPONSE"
 
 
 class EventType(str, Enum):
@@ -71,3 +76,7 @@ class EventSource(str, Enum):
     SYSTEM = "system"
     AGENT = "agent"
     EXTERNAL = "external"
+UI_SLEEP = "UI_SLEEP"
+UI_WAKE = "UI_WAKE"
+UI_ROAM_TOGGLE = "UI_ROAM_TOGGLE"
+UI_CHAT_TOGGLE = "UI_CHAT_TOGGLE"

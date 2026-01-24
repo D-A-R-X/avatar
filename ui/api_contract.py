@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from typing import Optional, Literal
 
 # -------- UI -> AI --------
-UIEventType = Literal["CLICK", "HOVER", "INPUT", "SLEEP", "WAKE"]
+UIEventType = Literal[
+    "AVATAR_CLICK",
+    "AVATAR_HOVER",
+    "USER_INPUT",
+    "SLEEP",
+    "WAKE",
+    "CHAT_TOGGLE"
+]
 
 @dataclass(frozen=True)
 class UIEvent:
@@ -15,7 +22,11 @@ AvatarState = Literal["IDLE", "WALK", "HOVER", "SLEEP"]
 EmotionType = Literal["neutral", "happy", "sad", "angry"]
 
 @dataclass(frozen=True)
-class AIState:
+class AIStateUpdate:
     avatar_state: AvatarState
-    response_text: str
     emotion: EmotionType
+
+
+@dataclass(frozen=True)
+class AIChatResponse:
+    text: str
