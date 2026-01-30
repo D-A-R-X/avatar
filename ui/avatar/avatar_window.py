@@ -1,31 +1,21 @@
+import os
+import math
+
 from PySide6.QtWidgets import QWidget, QGraphicsDropShadowEffect
 from PySide6.QtGui import QPixmap, QColor, QPainter
 from PySide6.QtCore import Qt, QTimer, QPoint
-import math
 
-from bubble.input_bubble import InputBubble
-from bubble.output_bubble import OutputBubble
-from voice.mic_listener import MicListener
-from api_contract import UIEvent
-from api_contract import AIState
-from bubble.emotion_style import EMOTION_STYLE
+from ui.bubble.input_bubble import InputBubble
+from ui.bubble.output_bubble import OutputBubble
+from ui.voice.mic_listener import MicListener
+from ui.api_contract import UIEvent
+from ui.bubble.emotion_style import EMOTION_STYLE
+from events.event_types import USER_TEXT_INPUT
 
 # ==================================================
-# AVATAR STATE CONTRACT (DO NOT VIOLATE)
-# --------------------------------------------------
-# Allowed states:
-#   IDLE
-#   WALK
-#   HOVER
-#   CLICK_REACT
-#   SLEEP
-#
-# Rules:
-# - Avatar NEVER decides its own state
-# - Avatar NEVER changes state automatically
-# - Avatar ONLY reacts to set_state(state)
-# - Avatar contains ZERO AI / emotion logic
+# PATH
 # ==================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class AvatarWindow(QWidget):
@@ -33,21 +23,21 @@ class AvatarWindow(QWidget):
         super().__init__()
 
         # ==================================================
-        # 🔒 WINDOW (FIXED SIZE — WIN11 SAFE)
+        # WINDOW (WINDOWS SAFE)
         # ==================================================
         self.base_size = 150
         self.setFixedSize(self.base_size, self.base_size)
 
         self.setWindowFlags(
             Qt.FramelessWindowHint |
-            Qt.WindowStaysOnTopHint |
-            Qt.Tool
+            Qt.Tool |
+            Qt.WindowStaysOnTopHint
         )
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFocusPolicy(Qt.StrongFocus)
+
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
 
         # ==================================================
-        # STATE (DATA ONLY)
+        # STATE
         # ==================================================
         self.state = "IDLE"
         self.roaming = False
@@ -55,19 +45,23 @@ class AvatarWindow(QWidget):
         self.dragging = False
 
         # ==================================================
-        # IMAGES
+        # IMAGES (SAFE PATH)
         # ==================================================
-        self.awake_pixmap = QPixmap("avatar/cute_pet.png")
-        self.sleep_pixmap = QPixmap("avatar/cute_pet_sleep.png")
+        self.awake_pixmap = QPixmap(os.path.join(BASE_DIR, "cute_pet.png"))
+        self.sleep_pixmap = QPixmap(os.path.join(BASE_DIR, "cute_pet_sleep.png"))
         self.current_pixmap = self.awake_pixmap
 
+        # DEBUG (remove later)
+        print("awake image ok:", not self.awake_pixmap.isNull())
+        print("sleep image ok:", not self.sleep_pixmap.isNull())
+
         # ==================================================
-        # BREATHING (VISUAL ONLY)
+        # BREATHING
         # ==================================================
         self.time = 0.0
 
         # ==================================================
-        # GLOW EFFECT
+        # GLOW
         # ==================================================
         self.glow = QGraphicsDropShadowEffect(self)
         self.glow.setBlurRadius(0)
@@ -76,7 +70,7 @@ class AvatarWindow(QWidget):
         self.setGraphicsEffect(self.glow)
 
         # ==================================================
-        # CHAT BUBBLES
+        # BUBBLES
         # ==================================================
         self.input_bubble = InputBubble()
         self.output_bubble = OutputBubble()
@@ -85,22 +79,26 @@ class AvatarWindow(QWidget):
         self.input_bubble.mic_toggled.connect(self.toggle_mic)
 
         # ==================================================
-        # MIC (DUMB LAYER)
+        # MIC
         # ==================================================
         self.mic = MicListener()
         self.mic.text_ready.connect(self.on_voice_text)
 
         # ==================================================
-        # MAIN TIMER (NO RESIZE INSIDE)
+        # TIMER
         # ==================================================
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.loop)
         self.timer.start(16)  # ~60 FPS
 
+        # FORCE VISIBILITY
+        self.move(300, 300)
         self.show()
 
+        QTimer.singleShot(1000, lambda: self.show_chat("Hello 👋"))
+
     # ==================================================
-    # 🎨 PAINT EVENT (ALL ANIMATION HERE)
+    # PAINT (WINDOWS SAFE)
     # ==================================================
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -109,75 +107,55 @@ class AvatarWindow(QWidget):
         scale = 1.0 + math.sin(self.time) * 0.01
         scale = max(0.99, min(scale, 1.01))
 
-        size = int(self.base_size * scale)
+        size = min(self.base_size, int(self.base_size * scale))
         x = (self.base_size - size) // 2
         y = (self.base_size - size) // 2
 
-        painter.drawPixmap(
-            x, y,
-            size, size,
-            self.current_pixmap
-        )
+        painter.drawPixmap(x, y, size, size, self.current_pixmap)
 
     # ==================================================
-    # MAIN LOOP (NO GEOMETRY CHANGES)
+    # LOOP
     # ==================================================
     def loop(self):
         self.time += 0.05
-        self.update()  # repaint only
+        self.update()
 
-        # ---------- Roaming ----------
         if self.roaming and self.state == "IDLE":
             self.move(self.x() + self.direction, self.y())
             screen = self.screen().availableGeometry()
             if self.x() <= 0 or self.x() >= screen.width() - self.width():
                 self.direction *= -1
 
-        # ---------- Output bubble follow ----------
         if self.output_bubble.isVisible():
-            out_pos = self.pos() + QPoint(
-                self.base_size // 2 - self.output_bubble.width() // 2,
-                -self.output_bubble.height() - 14
+            self.output_bubble.move(
+                self.pos() + QPoint(
+                    self.base_size // 2 - self.output_bubble.width() // 2,
+                    -self.output_bubble.height() - 14
+                )
             )
-            self.output_bubble.move(out_pos)
 
-        # ---------- Input bubble follow ----------
         if self.input_bubble.isVisible():
-            input_pos = self.pos() + QPoint(
-                self.base_size + 10,
-                self.base_size // 2 - self.input_bubble.height() // 2 - 30
+            self.input_bubble.move(
+                self.pos() + QPoint(
+                    self.base_size + 10,
+                    self.base_size // 2 - self.input_bubble.height() // 2 - 30
+                )
             )
-            self.input_bubble.move(input_pos)
 
     # ==================================================
-    # 🔒 STATE CONTROL (EXTERNAL ONLY)
+    # STATE CONTROL
     # ==================================================
     def set_state(self, state: str):
-        ALLOWED_STATES = {
-            "IDLE",
-            "WALK",
-            "HOVER",
-            "CLICK_REACT",
-            "SLEEP"
-        }
-
-        if state not in ALLOWED_STATES:
-            return
-
-        if self.state == state:
+        if state == self.state:
             return
 
         self.state = state
-
-        # Visual reaction ONLY
-        if state == "SLEEP":
-            self.current_pixmap = self.sleep_pixmap
-        else:
-            self.current_pixmap = self.awake_pixmap
-
+        self.current_pixmap = (
+            self.sleep_pixmap if state == "SLEEP" else self.awake_pixmap
+        )
         self.update()
-    
-    def apply_ai_state(self, state: AIState):
+
+    def apply_ai_state(self, state):
         self.set_state(state.avatar_state)
 
         style = EMOTION_STYLE.get(state.emotion, EMOTION_STYLE["neutral"])
@@ -189,39 +167,29 @@ class AvatarWindow(QWidget):
                 emotion=state.emotion
             )
 
-        # Reset glow
         self.glow.setBlurRadius(0)
 
     # ==================================================
-    # CHAT / VOICE (DUMB)
+    # INPUT
     # ==================================================
     def on_text(self, text):
         if self.state == "SLEEP":
             return
-        self.glow.setBlurRadius(18)
 
-        # EMIT EVENT ONLY (NO RESPONSE HERE)
+        # 🔥 SEND DIRECT EVENT (NO UIEvent)
         if hasattr(self, "emit_ui_event"):
-            self.emit_ui_event(
-                UIEvent(type="INPUT", data={"text": text})
-            )
+            self.emit_ui_event(USER_TEXT_INPUT, text)
 
     def on_voice_text(self, text):
         if self.state == "SLEEP":
             return
-
         if hasattr(self, "emit_ui_event"):
-            self.emit_ui_event(
-                UIEvent(type="INPUT", data={"text": text})
-            )
-            
+            self.emit_ui_event(UIEvent(type="INPUT", data={"text": text}))
+
     def toggle_mic(self, on):
         if self.state == "SLEEP":
             return
-        if on:
-            self.mic.start()
-        else:
-            self.mic.stop()
+        self.mic.start() if on else self.mic.stop()
 
     # ==================================================
     # MOUSE
@@ -239,8 +207,6 @@ class AvatarWindow(QWidget):
         self.dragging = False
 
     def mouseDoubleClickEvent(self, event):
-        if self.state == "SLEEP":
-            return
         if self.input_bubble.isVisible():
             self.input_bubble.hide()
             self.output_bubble.hide()
@@ -248,7 +214,7 @@ class AvatarWindow(QWidget):
             self.input_bubble.show()
 
     # ==================================================
-    # KEYBOARD
+    # KEYS
     # ==================================================
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_R:
@@ -257,3 +223,10 @@ class AvatarWindow(QWidget):
             self.set_state("SLEEP")
         elif event.key() == Qt.Key_W:
             self.set_state("IDLE")
+
+    def show_chat(self, text):
+        if not text:
+            return
+
+        self.output_bubble.show_message(text)
+        self.output_bubble.show()

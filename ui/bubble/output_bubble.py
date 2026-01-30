@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPainterPath
 
-from bubble.emotion_style import EMOTION_STYLE
+from ui.bubble.emotion_style import EMOTION_STYLE
 
 
 # ==================================================

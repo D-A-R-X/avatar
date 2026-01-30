@@ -1,27 +1,35 @@
-# Project stable – phase 1–4 complete
 import sys
 from PySide6.QtWidgets import QApplication
-from avatar.avatar_window import AvatarWindow
-from api_contract import UIEvent
-from dummy_ai import DummyAI
-from voice.tts_player import TTSPlayer
+
+from ui.avatar.avatar_window import AvatarWindow
+from events.event_types import AI_RESPONSE, AI_STATE_UPDATE, USER_TEXT_INPUT
+
 
 class MainUI:
-    def __init__(self):
+    def __init__(self, bus):
+        self.bus = bus
         self.avatar = AvatarWindow()
-        self.ai = DummyAI()
+
+        # 🔗 Wire Avatar → Backend
         self.avatar.emit_ui_event = self.emit_ui_event
-        self.tts = TTSPlayer()
 
-    def emit_ui_event(self, event: UIEvent):
-        ai_state = self.ai.handle_event(event)
-        self.avatar.apply_ai_state(ai_state)
+        # 🔗 Backend → UI
+        self.bus.subscribe(AI_RESPONSE, self.on_ai_response)
+        self.bus.subscribe(AI_STATE_UPDATE, self.on_state_update)
 
-        # 🔊 Speak AI response (NO THINKING)
-        if ai_state.response_text:
-            self.tts.speak(ai_state.response_text)
+    def emit_ui_event(self, event_type, data):
+        self.bus.publish(event_type, data)
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    ui = MainUI()
-    sys.exit(app.exec())
+    def on_ai_response(self, response):
+        if response and hasattr(response, "text"):
+            self.avatar.show_chat(response.text)
+
+    def on_state_update(self, update):
+        state = update.avatar_state
+
+        if state == "SLEEP":
+            self.avatar.set_state("SLEEP")
+        elif state == "IDLE":
+            self.avatar.set_state("IDLE")
+        elif state == "WALK":
+            self.avatar.roaming = True
